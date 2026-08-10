@@ -6,16 +6,19 @@ maven = "3.9.11"
 node = "22.19.0"
 pnpm = "10.15.0"
 
+[env]
+_.file = { path = ".env", required = false, redact = true }
+
 [tasks.setup]
-description = "開発環境を初期化（.env 作成・フロントエンド依存関係のインストール）"
+description = "開発環境を初期化（ルート .env 作成・フロントエンド依存関係のインストール）"
 run = [
   { task = "env:init" },
   { task = "frontend:install" },
 ]
 
 [tasks."env:init"]
-description = "存在しない backend/.env と frontend/.env を example から作成"
-run = '''node -e "const fs=require('node:fs'); for (const d of ['backend','frontend']) { const t=d+'/.env'; if (!fs.existsSync(t)) { fs.copyFileSync(d+'/.env.example',t); console.log('created '+t); } else { console.log('kept '+t); } }"'''
+description = "存在しないルート .env を .env.example から作成"
+run = '''node -e "const fs=require('node:fs'); const t='.env'; if (!fs.existsSync(t)) { fs.copyFileSync('.env.example',t); console.log('created '+t); } else { console.log('kept '+t); }"'''
 
 [tasks.dev]
 description = "バックエンドを Docker で起動し、Nuxt 開発サーバーを前面で起動"

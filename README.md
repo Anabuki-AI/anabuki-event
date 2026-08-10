@@ -1,34 +1,51 @@
 # Anabuki Event
 
-Anabuki Event is organized as a parent repository with the following Git submodules:
+Anabuki Event は、バックエンド・フロントエンド・ドキュメントを Git サブモジュールとして管理する親リポジトリです。
 
-- `backend`: backend application
-- `frontend`: frontend application
-- `docs`: project documentation
+```text
+anabuki-event/
+├─ backend/       # Java 25 / Javalin / PostgreSQL
+├─ frontend/      # Nuxt 4 / Vue 3 / TypeScript
+├─ docs/          # プロジェクトドキュメント
+├─ .env.example   # プロジェクト全体の環境変数テンプレート
+├─ .mise.toml      # ツールバージョンと開発タスク
+└─ README.md
+```
 
 ## Clone
 
+新しく取得する場合は、サブモジュールも同時にcloneします。
+
 ```bash
 git clone --recurse-submodules https://github.com/Anabuki-AI/anabuki-event.git
+cd anabuki-event
 ```
 
-For an existing clone:
+すでに親リポジトリをclone済みの場合は、次のコマンドでサブモジュールを取得します。
 
 ```bash
 git submodule update --init --recursive
 ```
 
-## Local development with mise
+## 必要なソフトウェア
 
-The root `mise.toml` pins the shared toolchain and provides project-wide commands for the backend and frontend.
-
-### Prerequisites
-
-- [mise](https://mise.jdx.dev/installing-mise.html)
 - Git
-- Docker Desktop (for PostgreSQL and Docker-based backend commands)
+- [mise](https://mise.jdx.dev/installing-mise.html)
+- Docker Desktop
 
-On Windows, install and activate mise in PowerShell:
+Java、Maven、Node.js、pnpmはmiseがプロジェクトに必要なバージョンをインストールします。OSへ個別にインストールする必要はありません。
+
+| ツール | バージョン |
+| --- | --- |
+| Java | Temurin 25 |
+| Maven | 3.9.11 |
+| Node.js | 22.19.0 |
+| pnpm | 10.15.0 |
+| PostgreSQL | 16（Docker） |
+
+### Windowsへのmiseインストール
+
+PowerShellではScoopの利用を推奨します。
 
 ```powershell
 scoop install mise
@@ -36,33 +53,142 @@ Add-Content $PROFILE '(&mise activate pwsh) | Out-String | Invoke-Expression'
 . $PROFILE
 ```
 
-`winget install jdx.mise` is also supported if Scoop is unavailable.
+Scoopを利用しない場合はwingetでもインストールできます。
 
-After cloning the repository:
+```powershell
+winget install jdx.mise
+```
+
+インストール後、問題がある場合は診断コマンドを実行してください。
+
+```powershell
+mise doctor
+```
+
+## 環境変数
+
+環境変数は、`backend/` や `frontend/` ではなく、**親プロジェクト直下の `.env` で一元管理**します。
+
+```text
+anabuki-event/
+├─ .env.example   # Git管理するテンプレート
+└─ .env           # 各開発者のローカル設定（Git管理しない）
+```
+
+通常は後述の `mise run setup` が、初回のみ `.env.example` を `.env` へコピーします。セットアップ前に値を編集したい場合は、手動でも作成できます。
+
+### PowerShell
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### Bash / Git Bash
 
 ```bash
+cp .env.example .env
+```
+
+`.mise.toml` がルートの `.env` を読み込み、mise経由で起動するバックエンド、Docker Compose、Nuxtへ環境変数を渡します。`backend/.env` と `frontend/.env` は作成しません。
+
+| 環境変数 | デフォルト値 | 用途 |
+| --- | --- | --- |
+| `POSTGRES_USER` | `anabuki` | PostgreSQLユーザー |
+| `POSTGRES_PASSWORD` | `anabuki` | PostgreSQLパスワード |
+| `JDBC_URL` | `jdbc:postgresql://localhost:5432/anabuki_event` | ローカルJava起動時のDB接続先 |
+| `DB_POOL_SIZE` | `10` | バックエンドのDBコネクションプール数 |
+| `PORT` | `8080` | バックエンドのHTTPポート |
+| `NUXT_BACKEND_BASE_URL` | `http://localhost:8080` | Nuxtから参照するバックエンドURL |
+| `NUXT_PUBLIC_API_BASE` | `/api` | ブラウザ側のAPIベースパス |
+
+`.env` には認証情報などが入る可能性があるため、コミットしないでください。共有する変数を追加した場合は、値を安全なサンプルにしたうえで `.env.example` も更新します。
+
+## 初回セットアップ
+
+プロジェクトルートで実行します。
+
+```powershell
 git submodule update --init --recursive
 mise trust
 mise install
 mise run setup
 ```
 
-`setup` creates `backend/.env` and `frontend/.env` only when they do not exist, then installs frontend dependencies from `pnpm-lock.yaml`.
+`mise run setup` は、ルート `.env` が存在しない場合に `.env.example` から作成し、`pnpm-lock.yaml` に従ってフロントエンドの依存関係をインストールします。既存の `.env` は上書きしません。
 
-### Main commands
+## 開発起動
 
-| Command | Purpose |
+バックエンドとPostgreSQLをDockerで起動し、その後Nuxt開発サーバーを起動します。
+
+```powershell
+mise run dev
+```
+
+通常は次のURLを使用します。
+
+- フロントエンド: `http://localhost:3000`
+- バックエンド: `http://localhost:8080`
+- ヘルスチェック: `http://localhost:8080/health`
+
+終了後、Dockerサービスを停止します。
+
+```powershell
+mise run stop
+```
+
+## 主なコマンド
+
+### プロジェクト全体
+
+| コマンド | 内容 |
 | --- | --- |
-| `mise tasks` | List all available commands |
-| `mise run dev` | Start backend/PostgreSQL in Docker, then start Nuxt |
-| `mise run stop` | Stop backend and PostgreSQL containers |
-| `mise run logs` | Follow Docker logs |
-| `mise run check` | Run backend tests plus frontend lint, typecheck, and tests |
-| `mise run build` | Build backend and frontend |
-| `mise run ci` | Run all checks, then both builds |
+| `mise tasks` | 利用可能な全タスクを表示 |
+| `mise run setup` | ルート `.env` を初期作成し、フロントエンド依存関係をインストール |
+| `mise run dev` | Dockerバックエンド・DBとNuxtを開発起動 |
+| `mise run stop` | Dockerサービスを停止 |
+| `mise run logs` | Dockerログを追跡表示 |
+| `mise run test` | バックエンドとフロントエンドのテストを実行 |
+| `mise run check` | backend testとfrontend lint・型検査・testを実行 |
+| `mise run build` | バックエンドとフロントエンドをビルド |
+| `mise run ci` | 全チェック後に全ビルドを実行 |
 
-Useful focused commands include `mise run backend:run`, `mise run backend:test`, `mise run frontend:dev`, and `mise run frontend:check`.
+### バックエンド
 
-`mise run backend:run` starts PostgreSQL in Docker and runs the API with the mise-managed Java/Maven toolchain. `mise run db:reset` deletes the local PostgreSQL volume and therefore asks for confirmation.
+| コマンド | 内容 |
+| --- | --- |
+| `mise run backend:dev` | バックエンドとPostgreSQLをDockerで前面起動 |
+| `mise run backend:run` | PostgreSQLをDocker、APIをローカルJavaで起動 |
+| `mise run backend:test` | Mavenテストを実行 |
+| `mise run backend:build` | 実行可能JARを作成 |
 
-If shell activation is not configured, `mise run ...` still activates the configured tools for each task. Run `mise doctor` to diagnose mise installation or activation issues.
+### フロントエンド
+
+| コマンド | 内容 |
+| --- | --- |
+| `mise run frontend:install` | lockfileに従って依存関係をインストール |
+| `mise run frontend:dev` | Nuxt開発サーバーを起動 |
+| `mise run frontend:lint` | ESLintを実行 |
+| `mise run frontend:typecheck` | TypeScript / Vueの型検査を実行 |
+| `mise run frontend:test` | Vitestを実行 |
+| `mise run frontend:check` | lint・型検査・テストを順番に実行 |
+| `mise run frontend:build` | Nuxtの本番ビルドを作成 |
+
+### データベース
+
+| コマンド | 内容 |
+| --- | --- |
+| `mise run db:up` | PostgreSQLだけをバックグラウンド起動 |
+| `mise run db:down` | Composeサービスを停止し、DBデータは保持 |
+| `mise run db:reset` | DBボリュームを削除してPostgreSQLを再作成 |
+
+`mise run db:reset` はローカルDBの全データを削除するため、実行前に確認が表示されます。
+
+## miseをシェルへactivateしない場合
+
+シェルactivateを設定していなくても、`mise run` と `mise exec` は必要なツールとルート `.env` を読み込んで実行します。
+
+```powershell
+mise run check
+mise exec -- java -version
+mise exec -- node --version
+```
