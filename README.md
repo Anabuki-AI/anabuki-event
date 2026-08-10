@@ -65,6 +65,8 @@ winget install jdx.mise
 mise doctor
 ```
 
+Nuxtの初回セットアップ時に匿名テレメトリへの参加確認が表示される場合があります。これはNuxt自身の確認であり、参加するかどうかは任意です。
+
 ## 環境変数
 
 環境変数は、`backend/` や `frontend/` ではなく、**親プロジェクト直下の `.env` で一元管理**します。
@@ -118,11 +120,15 @@ mise run setup
 
 ## 開発起動
 
-バックエンドとPostgreSQLをDockerで起動し、その後Nuxt開発サーバーを起動します。
+最初にDocker Desktopを起動し、画面上でEngineの起動が完了するまで待ってください。その後、バックエンドとPostgreSQLをDockerで起動し、Nuxt開発サーバーを起動します。
 
 ```powershell
 mise run dev
 ```
+
+`mise run dev` は最初にルート `.env` の存在を確認し、存在しなければ `.env.example` から作成します。その後、Docker Engineを確認し、ルート `.env` を明示的に指定してDocker ComposeとNuxtを起動します。フロントエンド依存関係が未インストールの場合だけ、先に `mise run setup` を実行してください。
+
+開発サーバー実行中に `Ctrl+C` を押すと、Nuxtを終了してから `docker compose down` を実行し、バックエンドとPostgreSQLも停止します。Nuxtがエラー終了した場合も同じクリーンアップを行います。
 
 通常は次のURLを使用します。
 

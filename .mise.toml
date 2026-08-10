@@ -1,4 +1,5 @@
 min_version = "2026.1.0"
+redactions = ["POSTGRES_PASSWORD"]
 
 [tools]
 java = "temurin-25"
@@ -7,7 +8,7 @@ node = "22.19.0"
 pnpm = "10.15.0"
 
 [env]
-_.file = { path = ".env", required = false, redact = true }
+_.file = { path = ".env", required = false }
 
 [tasks.setup]
 description = "開発環境を初期化（ルート .env 作成・フロントエンド依存関係のインストール）"
@@ -20,55 +21,60 @@ run = [
 description = "存在しないルート .env を .env.example から作成"
 run = '''node -e "const fs=require('node:fs'); const t='.env'; if (!fs.existsSync(t)) { fs.copyFileSync('.env.example',t); console.log('created '+t); } else { console.log('kept '+t); }"'''
 
+[tasks."docker:check"]
+description = "ルート .env を用意し、Docker Desktop が起動していることを確認"
+depends = ["env:init"]
+run = '''node -e "const {spawnSync}=require('node:child_process'); const r=spawnSync('docker',['info'],{stdio:'ignore',shell:process.platform==='win32'}); if (r.status!==0) { console.error('Docker Engine に接続できません。Docker Desktop を起動し、起動完了後にもう一度実行してください。'); process.exit(1); }"'''
+
 [tasks.dev]
-description = "バックエンドを Docker で起動し、Nuxt 開発サーバーを前面で起動"
-depends = ["setup"]
-run = [
-  "docker compose -f backend/docker-compose.yml up -d --build --wait",
-  "pnpm --dir frontend dev",
-]
+description = "ルート .env を読み込み、バックエンド・DB・Nuxtを開発起動（Ctrl+Cで全停止）"
+depends = ["docker:check"]
+run = "node scripts/dev.mjs"
+interactive = true
 
 [tasks.stop]
 description = "Docker 上のバックエンドと PostgreSQL を停止"
-run = "docker compose -f backend/docker-compose.yml down"
+depends = ["docker:check"]
+run = "docker compose --env-file .env -f backend/docker-compose.yml down"
 
 [tasks.logs]
 description = "Docker 上のバックエンドと PostgreSQL のログを表示"
-run = "docker compose -f backend/docker-compose.yml logs -f"
+depends = ["docker:check"]
+run = "docker compose --env-file .env -f backend/docker-compose.yml logs -f"
 interactive = true
 
 [tasks."db:up"]
-description = "PostgreSQL だけをバックグラウンドで起動"
-dir = "backend"
-run = "docker compose up -d --wait postgres"
+description = "ルート .env を使って PostgreSQL だけをバックグラウンドで起動"
+depends = ["docker:check"]
+run = "docker compose --env-file .env -f backend/docker-compose.yml up -d --wait postgres"
 
 [tasks."db:down"]
 description = "Docker Compose サービスを停止（DB データは保持）"
-dir = "backend"
-run = "docker compose down"
+depends = ["docker:check"]
+run = "docker compose --env-file .env -f backend/docker-compose.yml down"
 
 [tasks."db:reset"]
 description = "PostgreSQL のボリュームを削除して作り直す"
-dir = "backend"
+depends = ["docker:check"]
 confirm = { message = "ローカル PostgreSQL の全データを削除します。続行しますか？", default = "no" }
 run = [
-  "docker compose down --volumes",
-  "docker compose up -d --wait postgres",
+  "docker compose --env-file .env -f backend/docker-compose.yml down --volumes",
+  "docker compose --env-file .env -f backend/docker-compose.yml up -d --wait postgres",
 ]
 
 [tasks."backend:dev"]
-description = "バックエンドと PostgreSQL を Docker Compose で前面起動"
-dir = "backend"
-run = "docker compose up --build"
+description = "ルート .env を使ってバックエンドと PostgreSQL を前面起動"
+depends = ["docker:check"]
+run = "docker compose --env-file .env -f backend/docker-compose.yml up --build"
 interactive = true
 
 [tasks."backend:run"]
-description = "PostgreSQL を Docker、バックエンドをローカル Java で起動"
+description = "ルート .env を使い、PostgreSQL を Docker、バックエンドをローカル Java で起動"
 depends = ["db:up"]
 dir = "backend"
 run = [
   "mvn -B -DskipTests package",
-  "java -jar target/backend.jar",
+  "mise exec -- java -jar target/backend.jar",
 ]
 interactive = true
 
