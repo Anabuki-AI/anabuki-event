@@ -1,0 +1,83 @@
+name: Sync submodule references
+
+on:
+  repository_dispatch:
+    types: [submodule-main-succeeded]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-submodule-references
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Update the dispatched submodule
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate dispatch payload
+        id: payload
+        env:
+          REPOSITORY: ${{ github.event.client_payload.repository }}
+          SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          set -euo pipefail
+
+          case "$REPOSITORY" in
+            Anabuki-AI/anabuki-event-backend) submodule=backend ;;
+            Anabuki-AI/anabuki-event-frontend) submodule=frontend ;;
+            *)
+              echo "Unsupported repository: $REPOSITORY" >&2
+              exit 1
+              ;;
+          esac
+
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "The dispatch payload does not contain a valid commit SHA." >&2
+            exit 1
+          fi
+
+          echo "submodule=$submodule" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the parent repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          submodules: false
+
+      - name: Update the submodule reference
+        id: update
+        env:
+          SUBMODULE: ${{ steps.payload.outputs.submodule }}
+          SHA: ${{ steps.payload.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          # A gitlink can be updated without cloning the child repository.
+          # This keeps the parent workflow limited to this repository's token;
+          # the child CI verifies that SHA is the current main tip before it
+          # sends this dispatch event.
+          git update-index --add --cacheinfo "160000,$SHA,$SUBMODULE"
+
+          if git diff --cached --quiet; then
+            echo "The parent repository already references ${SUBMODULE} at ${SHA}."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push the updated reference
+        if: steps.update.outputs.changed == 'true'
+        env:
+          SUBMODULE: ${{ steps.payload.outputs.submodule }}
+          SHA: ${{ steps.payload.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(submodules): update ${SUBMODULE} to ${SHA:0:7}"
+          git push origin HEAD:main

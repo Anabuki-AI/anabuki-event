@@ -12,6 +12,14 @@ anabuki-event/
 └─ README.md
 ```
 
+## サブモジュールの自動追従
+
+`backend` または `frontend` の `main` へのpush後、各リポジトリのCIが成功すると、親リポジトリのサブモジュール参照を成功したコミットへ自動更新します。親リポジトリには `chore(submodules): ...` コミットが作成されます。
+
+初回設定として、`backend` と `frontend` の両リポジトリで、Actions secret `PARENT_REPOSITORY_TOKEN` を登録してください。これは `Anabuki-AI/anabuki-event` に対して **Contents: Read and write** 権限を持つfine-grained personal access token、または同等のGitHub Appトークンです。トークンは親リポジトリだけを対象にし、子リポジトリへの権限は不要です。
+
+親リポジトリのSettings → Actions → Generalでは、ワークフローに対する **Read and write permissions** を許可してください。`backend` と `frontend` が同時に更新された場合も、親側ワークフローが順番に処理します。すでに新しいコミットが `main` にある場合、古いCI結果は反映せず、最新コミットのCI成功通知を待ちます。
+
 ## Clone
 
 新しく取得する場合は、サブモジュールも同時にcloneします。
