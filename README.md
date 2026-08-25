@@ -77,7 +77,7 @@ Nuxtの初回セットアップ時に匿名テレメトリへの参加確認が�
 
 ## 環境変数
 
-DB接続などのローカル設定は、`backend/` や `frontend/` ではなく、**親プロジェクト直下の `.env` で一元管理**します。外部公開URLとOAuth callback URLは、ブラウザの生成元・リダイレクトURIと環境全体で一致させるため、`.mise.toml` の `[env]` にあるグローバルURL設定で管理します。
+DB接続などのローカル設定に加えて、外部公開URLとOAuth callback URLも、`backend/` や `frontend/` ではなく、**親プロジェクト直下の `.env` で一元管理**します。これらの値はブラウザの生成元・リダイレクトURIと環境全体で一致させます。
 
 ```text
 anabuki-event/
@@ -111,7 +111,7 @@ cp .env.example .env
 | `NUXT_BACKEND_BASE_URL` | `http://localhost:8080` | Nuxtから参照するバックエンドURL |
 | `NUXT_PUBLIC_API_BASE` | `/api` | ブラウザ側のAPIベースパス |
 
-公開URLとGoogle OAuthのブラウザ/コールバック境界は、`.mise.toml` の `[env]` にあるグローバルURL設定で管理します。`.env` には重複して定義しません。OAuth自体の実装、API、DB設定はこの設定変更には含まれません。
+公開URLとGoogle OAuthのブラウザ/コールバック境界も、`.env` で管理します。OAuth自体の実装、API、DB設定はこの設定変更には含まれません。
 
 | 環境変数 | 開発値 | 用途 |
 | --- | --- | --- |
@@ -119,18 +119,18 @@ cp .env.example .env
 | `ADMIN_FRONTEND_URL` | `http://localhost:3000/admin` | 管理者フロントエンドのURL |
 | `GOOGLE_OAUTH_CALLBACK_URL` | `http://localhost:8080/api/auth/google/callback` | 将来のGoogle OAuth callback URL（現時点では未実装） |
 
-公開URLの3変数は `.mise.toml` が管理するため、`.env.example` には重複して記載しません。
+公開URLの3変数は `.env` で管理し、`.env.example` にも非秘密の開発値を記載します。
 
 ### 本番相当のURLへ切り替える場合
 
-`.mise.toml` の `[env]` にある「公開URL設定」ブロックだけを、次のように対象環境のFQDNへ変更します。
+ルート `.env` の公開URL設定を、次のように対象環境のFQDNへ変更します。
 
 1. `PUBLIC_BASE_URL` を一般公開フロントエンドのFQDNへ変更する。
 2. `ADMIN_FRONTEND_URL` を管理者フロントエンドのFQDN（または管理者パス）へ変更する。
 3. `GOOGLE_OAUTH_CALLBACK_URL` をOAuth実装が受け付けるcallback endpointのFQDNへ変更する。
 4. Google Cloud Consoleの承認済みJavaScript生成元と承認済みリダイレクトURIを、上記の実際のscheme・host・pathと完全一致させる。
 
-`[env]` の値は、同名のローカル `.env` がある場合そちらで上書きされます。本番値を意図せずローカル設定へ残さないため、これら3変数を `.env` に追加しないでください。
+miseはルート `.env` を読み込むため、これらの値もmise経由で起動する各サービスへ渡されます。本番値をローカル設定へ残さないよう、環境ごとに `.env` を設定してください。
 `.env` には認証情報などが入る可能性があるため、コミットしないでください。共有する変数を追加した場合は、値を安全なサンプルにしたうえで `.env.example` も更新します。
 
 ## 初回セットアップ
