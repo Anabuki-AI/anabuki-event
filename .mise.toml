@@ -10,6 +10,12 @@ pnpm = "10.15.0"
 [env]
 _.file = { path = ".env", required = false }
 
+# 公開URL設定（本番ではこのブロックの値だけをFQDNへ差し替える）
+# OAuthの実装/APIはまだ存在しないため、現時点では接続先を予約する。
+PUBLIC_BASE_URL = "http://localhost:3000"
+ADMIN_FRONTEND_URL = "http://localhost:3000/admin"
+GOOGLE_OAUTH_CALLBACK_URL = "http://localhost:8080/api/auth/google/callback"
+
 [tasks.setup]
 description = "開発環境を初期化（ルート .env 作成・フロントエンド依存関係のインストール）"
 run = [
