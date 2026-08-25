@@ -111,13 +111,13 @@ cp .env.example .env
 | `NUXT_BACKEND_BASE_URL` | `http://localhost:8080` | Nuxtから参照するバックエンドURL |
 | `NUXT_PUBLIC_API_BASE` | `/api` | ブラウザ側のAPIベースパス |
 
-公開URLとGoogle OAuthのブラウザ/コールバック境界も、`.env` で管理します。OAuth自体の実装、API、DB設定はこの設定変更には含まれません。
+公開URLとGoogle OAuthのブラウザ/コールバック境界も、`.env` で管理します。Googleのclient secretはバックエンドだけで使用し、Gitへ記録しません。
 
 | 環境変数 | 開発値 | 用途 |
 | --- | --- | --- |
 | `PUBLIC_BASE_URL` | `http://localhost:3000` | 外部公開する一般フロントエンドの基準URL |
 | `ADMIN_FRONTEND_URL` | `http://localhost:3000/admin` | 管理者フロントエンドのURL |
-| `GOOGLE_OAUTH_CALLBACK_URL` | `http://localhost:8080/api/auth/google/callback` | 将来のGoogle OAuth callback URL（現時点では未実装） |
+| `GOOGLE_OAUTH_CALLBACK_URL` | `http://localhost:8080/api/auth/google/callback` | Google OAuth callback URL |
 
 公開URLの3変数は `.env` で管理し、`.env.example` にも非秘密の開発値を記載します。
 
@@ -169,6 +169,12 @@ mise run dev
 ```powershell
 mise run stop
 ```
+
+## 管理者Google OAuth・承認フロー
+
+Google OAuth成功後、env allowlistのメールは`ENV_ADMIN`、activeな`admin_users`にGoogle `sub`が固定された人は`DB_ADMIN`、それ以外の本人確認済みユーザーは短時間の`APPLICANT`セッションになります。APPLICANTはメールやsubをリクエスト本文へ送らず、サーバー側一時セッションから自分の申請を作成できます。B/Cは承認待ち申請を承認または却下し、承認時はGoogle `sub`を保存したDB管理者を作成します。
+
+APPLICANTは承認をポーリングし、バックエンドの一回限りexchange APIで一時Cookieを失効させて8時間のDB管理者Cookieへ交換します。Bには削除API権限がなく、CだけがDB管理者と全セッションを無効化できます。env由来のCは管理画面/APIから削除できず、envとDBの双方に存在する場合はCを優先します。
 
 ## 主なコマンド
 
