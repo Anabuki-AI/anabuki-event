@@ -172,9 +172,9 @@ mise run stop
 
 ## 管理者Google OAuth・承認フロー
 
-Google OAuth成功後、env allowlistのメールは`ENV_ADMIN`、activeな`admin_users`にGoogle `sub`が固定された人は`DB_ADMIN`、それ以外の本人確認済みユーザーは短時間の`APPLICANT`セッションになります。APPLICANTはメールやsubをリクエスト本文へ送らず、サーバー側一時セッションから自分の申請を作成できます。B/Cは承認待ち申請を承認または却下し、承認時はGoogle `sub`を保存したDB管理者を作成します。
+Google OAuth成功後、env allowlistに一致するGoogle identityは`ENVIRONMENT_ACCESS`、activeな`admin_users`にGoogle `sub`が固定されたidentityは`MANAGEMENT_ACCESS`、それ以外の本人確認済みidentityは短時間の`APPLICANT`になります。`admin_users`は管理ページ利用許可の保存先であり、既存一般ユーザーとは統合しません。APPLICANTはメールやsubをリクエスト本文へ送らず、サーバー側一時セッションから自分の申請を作成できます。MANAGEMENT_ACCESSとENVIRONMENT_ACCESSは承認待ち申請を承認または却下し、承認時は対象Google identityへ管理ページ利用許可を付与します。
 
-APPLICANTは承認をポーリングし、バックエンドの一回限りexchange APIで一時Cookieを失効させて8時間のDB管理者Cookieへ交換します。Bには削除API権限がなく、CだけがDB管理者と全セッションを無効化できます。env由来のCは管理画面/APIから削除できず、envとDBの双方に存在する場合はCを優先します。
+APPLICANTは承認をポーリングし、バックエンドの一回限りexchange APIで一時Cookieを失効させて8時間の管理ページ利用Cookieへ交換します。管理ページ利用許可を持つBは申請を承認・却下できますが、他者の利用許可を解除できません。env allowlist由来のCは同じ承認権限に加えてBの管理ページ利用許可を解除できます。Cの環境設定は管理画面/APIから変更できず、envと保存済み許可の双方に該当する場合はENVIRONMENT_ACCESSを優先します。
 
 ## 主なコマンド
 
