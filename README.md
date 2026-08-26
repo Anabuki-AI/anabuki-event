@@ -174,7 +174,7 @@ mise run stop
 
 Google OAuth成功後、env allowlistに一致するGoogle identityは`ENVIRONMENT_ACCESS`、`admin_identities.admin_enabled=true`でGoogle `sub`が固定されたidentityは`MANAGEMENT_ACCESS`、それ以外の本人確認済みidentityは短時間の`APPLICANT`になります。`admin_identities`はGoogle identityと管理ページ利用許可の保存先であり、既存一般ユーザーとは統合しません。APPLICANTはメールやsubをリクエスト本文へ送らず、サーバー側一時セッションから自分の申請を作成できます。MANAGEMENT_ACCESSとENVIRONMENT_ACCESSは承認待ち申請を承認または却下し、承認時は対象Google identityへ管理ページ利用許可を付与します。
 
-APPLICANTは承認をポーリングし、バックエンドの一回限りexchange APIで一時Cookieを失効させて8時間の管理ページ利用Cookieへ交換します。管理ページ利用許可を持つBは申請を承認・却下できますが、他者の利用許可を解除できません。env allowlist由来のCは同じ承認権限に加えてBの管理ページ利用許可を解除できます。Cの環境設定は管理画面/APIから変更できず、毎リクエスト現在値を再評価します。
+APPLICANTは承認をポーリングし、バックエンドの一回限りexchange APIで一時Cookieを失効させて8時間の管理ページ利用Cookieへ交換します。申請は作成元のA用一時セッションと端末単位で紐付き、申請期限も20分です。セッションの期限切れ・ログアウト・失効時はPENDING申請をCANCELLEDとして履歴に残し、B/Cの通常一覧から除外します。管理ページ利用許可を持つBは申請を承認・却下できますが、他者の利用許可を解除できません。env allowlist由来のCは同じ承認権限に加えてBの管理ページ利用許可を解除できます。Cの環境設定は管理画面/APIから変更できず、毎リクエスト現在値を再評価します。
 
 ## 主なコマンド
 
@@ -237,4 +237,4 @@ mise exec -- node --version
 
 `admin_identities`がGoogle identityと管理ページ利用許可（`admin_enabled`）の本体です。旧V2〜V4の`admin_users`/`admin_sessions`はV5で安全に移行します。sub付きの既存許可はUUID identityへ引き継ぎ、旧セッションは端末hashを復元できないため破棄して再ログインを要求します。
 
-認証Cookieはブラウザプロファイル単位のランダム`admin_device_id`とログインごとのランダム`admin_session`または短期`admin_applicant_session`です。物理端末ID・MAC・fingerprintは利用せず、DBにはdevice/session両方のSHA-256だけを保存します。同じ人物の複数端末は同時に利用でき、同じブラウザの再ログインはsession keyをローテーションします。端末一覧、ハッシュ、セッション行は管理UIへ表示しません。
+認証Cookieはブラウザプロファイル単位のランダム`admin_device_id`とログインごとのランダム`admin_session`または短期`admin_applicant_session`です。物理端末ID・MAC・fingerprintは利用せず、DBにはdevice/session両方のSHA-256だけを保存します。同じ人物の複数端末は同時に利用でき、申請は作成元セッションのdevice hash・session key hash・session UUIDを照合して延命を防ぎます。同じブラウザの再ログインはsession keyをローテーションし、旧A申請を失効させます。端末一覧、ハッシュ、セッション行は管理UIへ表示しません。
