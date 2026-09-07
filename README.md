@@ -240,3 +240,11 @@ mise exec -- node --version
 `admin_identities`がGoogle identityと管理ページ利用許可（`admin_enabled`）の本体です。旧V2〜V4の`admin_users`/`admin_sessions`はV5で安全に移行します。sub付きの既存許可はUUID identityへ引き継ぎ、旧セッションは端末hashを復元できないため破棄して再ログインを要求します。
 
 認証Cookieはブラウザプロファイル単位のランダム`admin_device_id`とログインごとのランダム`admin_session`または短期`admin_applicant_session`です。物理端末ID・MAC・fingerprintは利用せず、DBにはdevice/session両方のSHA-256だけを保存します。同じ人物の複数端末は同時に利用でき、申請は作成元セッションのdevice hash・session key hash・session UUIDを照合して延命を防ぎます。同じブラウザの再ログインはsession keyをローテーションし、旧A申請を失効させます。端末一覧、ハッシュ、セッション行は管理UIへ表示しません。
+
+## RailsバックエンドのRSpec・Que・Sentry
+
+RailsバックエンドはRSpecへ移行し、`mise run backend:test` がPostgreSQL上で `rails db:create db:migrate` と `bundle exec rspec` を実行します。`mise run backend:build` はRails eager loadingとroutesを検証します。
+
+Active JobはRedisではなくPostgreSQL-backed Queを利用します。`mise run backend:dev` はComposeの `postgres`、`db-prepare`、Rails API、Que workerを順に起動します。ローカルRubyでworkerだけを起動する場合は `mise run backend:worker` を使います。workerのキューは `QUE_WORKER_COUNT` で調整できます。
+
+Sentryは `SENTRY_DSN`、`SENTRY_ENVIRONMENT`、`SENTRY_RELEASE`、`SENTRY_ENABLED_ENVIRONMENTS` で設定します。開発/test環境は送信しない設定で、実DSNはsecret storeまたはCI secretにだけ設定してください。cookie、authorization/token、password、credential、email等はRailsログとSentryイベントから収集しない構成です。

@@ -77,14 +77,21 @@ interactive = true
 description = "Rails専用 PostgreSQL をDocker、Rails APIをローカルRubyで起動"
 depends = ["db:up", "backend:install"]
 dir = "backend"
-run = "bundle exec rails db:prepare && bundle exec rails server -p ${PORT:-8080}"
+run = "bundle exec rails db:migrate && bundle exec rails server -p ${PORT:-8080}"
 interactive = true
 
 [tasks."backend:test"]
 description = "Railsテストを実行（Rails専用 PostgreSQL が必要）"
 depends = ["db:up", "backend:install"]
 dir = "backend"
-run = "DATABASE_URL= RAILS_ENV=test bundle exec rails db:create db:prepare && DATABASE_URL= RAILS_ENV=test bundle exec rails test"
+run = "DATABASE_URL= RAILS_ENV=test bundle exec rails db:create db:migrate && DATABASE_URL= RAILS_ENV=test bundle exec rspec"
+
+[tasks."backend:worker"]
+description = "Que workerをローカルRubyで起動（Rails専用PostgreSQLが必要）"
+depends = ["db:up", "backend:install"]
+dir = "backend"
+run = "DATABASE_URL= RAILS_ENV=development bundle exec rails db:migrate && DATABASE_URL= RAILS_ENV=development bundle exec que --worker-count ${QUE_WORKER_COUNT:-3} --queue-name default --queue-name mailers --queue-name action_mailbox_incineration --queue-name action_mailbox_routing --queue-name active_storage_analysis --queue-name active_storage_purge"
+interactive = true
 
 [tasks."backend:build"]
 description = "Rails の eager loading と routes を検証"
