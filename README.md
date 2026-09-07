@@ -4,7 +4,7 @@ Anabuki Event は、バックエンド・フロントエンド・ドキュメン
 
 ```text
 anabuki-event/
-├─ backend/       # Java 25 / Javalin / PostgreSQL
+├─ backend/       # Rails 8 API / PostgreSQL（Java backendの移行先）
 ├─ frontend/      # Nuxt 4 / Vue 3 / TypeScript
 ├─ docs/          # プロジェクトドキュメント
 ├─ .env.example   # プロジェクト全体の環境変数テンプレート
@@ -41,12 +41,11 @@ git submodule update --init --recursive
 - [mise](https://mise.jdx.dev/installing-mise.html)
 - Docker Desktop
 
-Java、Maven、Node.js、pnpmはmiseがプロジェクトに必要なバージョンをインストールします。OSへ個別にインストールする必要はありません。
+Ruby、Node.js、pnpmはmiseがプロジェクトに必要なバージョンをインストールします。OSへ個別にインストールする必要はありません。
 
 | ツール | バージョン |
 | --- | --- |
-| Java | Temurin 25 |
-| Maven | 3.9.11 |
+| Ruby | 3.4.7 |
 | Node.js | 22.19.0 |
 | pnpm | 10.15.0 |
 | PostgreSQL | 16（Docker） |
@@ -105,8 +104,9 @@ cp .env.example .env
 | --- | --- | --- |
 | `POSTGRES_USER` | `anabuki` | PostgreSQLユーザー |
 | `POSTGRES_PASSWORD` | `anabuki` | PostgreSQLパスワード |
-| `JDBC_URL` | `jdbc:postgresql://localhost:5432/anabuki_event` | ローカルJava起動時のDB接続先 |
-| `DB_POOL_SIZE` | `10` | バックエンドのDBコネクションプール数 |
+| `POSTGRES_HOST` / `POSTGRES_PORT` | `localhost` / `5433` | Rails専用PostgreSQLの接続先 |
+| `DATABASE_URL` | `postgresql://…/anabuki_event_rails_development` | Rails APIのDB接続先（Java DBとは別） |
+| `RAILS_MAX_THREADS` | `5` | RailsのDBコネクションプール上限 |
 | `PORT` | `8080` | バックエンドのHTTPポート |
 | `NUXT_BACKEND_BASE_URL` | `http://localhost:8080` | Nuxtから参照するバックエンドURL |
 | `NUXT_PUBLIC_API_BASE` | `/api` | ブラウザ側のAPIベースパス |
@@ -120,6 +120,8 @@ cp .env.example .env
 | `GOOGLE_OAUTH_CALLBACK_URL` | `http://localhost:8080/api/auth/google/callback` | Google OAuth callback URL |
 
 公開URLの3変数は `.env` で管理し、`.env.example` にも非秘密の開発値を記載します。
+
+> **DB保護:** Rails は `anabuki_event_rails_*` と `rails-postgres-data` を使用します。Java/Flyway の `anabuki_event` DB・volumeや本番DBをこの移行ブランチの `db:reset`・migration対象にしません。既存本番データの移行は、承認済みバックアップ、dry-run、照合を含む別手順として実施してください。
 
 ### 本番相当のURLへ切り替える場合
 
@@ -196,10 +198,10 @@ APPLICANTは承認をポーリングし、バックエンドの一回限りexcha
 
 | コマンド | 内容 |
 | --- | --- |
-| `mise run backend:dev` | バックエンドとPostgreSQLをDockerで前面起動 |
-| `mise run backend:run` | PostgreSQLをDocker、APIをローカルJavaで起動 |
-| `mise run backend:test` | Mavenテストを実行 |
-| `mise run backend:build` | 実行可能JARを作成 |
+| `mise run backend:dev` | Rails APIとRails専用PostgreSQLをDockerで前面起動 |
+| `mise run backend:run` | Rails専用PostgreSQLをDocker、APIをローカルRubyで起動 |
+| `mise run backend:test` | Railsテストを実行 |
+| `mise run backend:build` | Rails eager loading・routesを検証 |
 
 ### フロントエンド
 

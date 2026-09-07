@@ -1,9 +1,8 @@
 min_version = "2026.1.0"
-redactions = ["POSTGRES_PASSWORD"]
+redactions = ["POSTGRES_PASSWORD", "GOOGLE_CLIENT_SECRET", "SECRET_KEY_BASE"]
 
 [tools]
-java = "temurin-25"
-maven = "3.9.11"
+ruby = "3.4.7"
 node = "22.19.0"
 pnpm = "10.15.0"
 
@@ -11,9 +10,10 @@ pnpm = "10.15.0"
 _.file = { path = ".env", required = false }
 
 [tasks.setup]
-description = "開発環境を初期化（ルート .env 作成・フロントエンド依存関係のインストール）"
+description = "開発環境を初期化（ルート .env 作成・Rails/Nuxt依存関係のインストール）"
 run = [
   { task = "env:init" },
+  { task = "backend:install" },
   { task = "frontend:install" },
 ]
 
@@ -27,66 +27,70 @@ depends = ["env:init"]
 run = '''node -e "const {spawnSync}=require('node:child_process'); const r=spawnSync('docker',['info'],{stdio:'ignore',shell:process.platform==='win32'}); if (r.status!==0) { console.error('Docker Engine に接続できません。Docker Desktop を起動し、起動完了後にもう一度実行してください。'); process.exit(1); }"'''
 
 [tasks.dev]
-description = "ルート .env を読み込み、バックエンド・DB・Nuxtを開発起動（Ctrl+Cで全停止）"
+description = "Rails・PostgreSQL・Nuxtを開発起動（Ctrl+Cで全停止）"
 depends = ["docker:check"]
 run = "node scripts/dev.mjs"
 interactive = true
 
 [tasks.stop]
-description = "Docker 上のバックエンドと PostgreSQL を停止"
+description = "Docker 上の Rails と PostgreSQL を停止"
 depends = ["docker:check"]
 run = "docker compose --env-file .env -f backend/docker-compose.yml down"
 
 [tasks.logs]
-description = "Docker 上のバックエンドと PostgreSQL のログを表示"
+description = "Docker 上の Rails と PostgreSQL のログを表示"
 depends = ["docker:check"]
 run = "docker compose --env-file .env -f backend/docker-compose.yml logs -f"
 interactive = true
 
 [tasks."db:up"]
-description = "ルート .env を使って PostgreSQL だけをバックグラウンドで起動"
+description = "Rails専用 PostgreSQL をバックグラウンド起動"
 depends = ["docker:check"]
 run = "docker compose --env-file .env -f backend/docker-compose.yml up -d --wait postgres"
 
 [tasks."db:down"]
-description = "Docker Compose サービスを停止（DB データは保持）"
+description = "Rails専用 PostgreSQL を停止（DBデータは保持）"
 depends = ["docker:check"]
 run = "docker compose --env-file .env -f backend/docker-compose.yml down"
 
 [tasks."db:reset"]
-description = "PostgreSQL のボリュームを削除して作り直す"
+description = "Rails専用 PostgreSQL volume を削除して作り直す（Java DBには触れない）"
 depends = ["docker:check"]
-confirm = { message = "ローカル PostgreSQL の全データを削除します。続行しますか？", default = "no" }
+confirm = { message = "Rails専用ローカルDBの全データを削除します。Java/本番DBは対象外です。続行しますか？", default = "no" }
 run = [
   "docker compose --env-file .env -f backend/docker-compose.yml down --volumes",
   "docker compose --env-file .env -f backend/docker-compose.yml up -d --wait postgres",
 ]
 
+[tasks."backend:install"]
+description = "Rails gemをインストール"
+dir = "backend"
+run = "bundle install"
+
 [tasks."backend:dev"]
-description = "ルート .env を使ってバックエンドと PostgreSQL を前面起動"
+description = "Rails と Rails専用 PostgreSQL を前面起動"
 depends = ["docker:check"]
 run = "docker compose --env-file .env -f backend/docker-compose.yml up --build"
 interactive = true
 
 [tasks."backend:run"]
-description = "ルート .env を使い、PostgreSQL を Docker、バックエンドをローカル Java で起動"
-depends = ["db:up"]
+description = "Rails専用 PostgreSQL をDocker、Rails APIをローカルRubyで起動"
+depends = ["db:up", "backend:install"]
 dir = "backend"
-run = [
-  "mvn -B -DskipTests package",
-  "mise exec -- java -jar target/backend.jar",
-]
+run = "bundle exec rails db:prepare && bundle exec rails server -p ${PORT:-8080}"
 interactive = true
 
 [tasks."backend:test"]
-description = "バックエンドのテストを実行"
+description = "Railsテストを実行（Rails専用 PostgreSQL が必要）"
+depends = ["db:up", "backend:install"]
 dir = "backend"
-run = "mvn -B test"
+run = "DATABASE_URL= RAILS_ENV=test bundle exec rails db:create db:prepare && DATABASE_URL= RAILS_ENV=test bundle exec rails test"
 
 [tasks."backend:build"]
-description = "バックエンドの実行可能 JAR を作成"
+description = "Rails の eager loading と routes を検証"
+depends = ["backend:install"]
 dir = "backend"
-run = "mvn -B -DskipTests package"
+run = ["bundle exec rails zeitwerk:check", "bundle exec rails routes"]
 
 [tasks."frontend:install"]
 description = "pnpm lockfile に従って依存関係をインストール"
@@ -123,24 +127,24 @@ run = [
 ]
 
 [tasks."frontend:build"]
-description = "フロントエンドの本番ビルドを作成"
+description = "Nuxtの本番ビルドを作成"
 dir = "frontend"
 run = "pnpm build"
 
 [tasks.test]
-description = "バックエンドとフロントエンドのテストを実行"
+description = "Rails とフロントエンドのテストを実行"
 run = [{ tasks = ["backend:test", "frontend:test"] }]
 
 [tasks.check]
-description = "コミット前の全検査（backend test + frontend lint/typecheck/test）"
+description = "コミット前の全検査（Rails test + frontend lint/typecheck/test）"
 run = [{ tasks = ["backend:test", "frontend:check"] }]
 
 [tasks.build]
-description = "バックエンドとフロントエンドをビルド"
+description = "Rails検証とフロントエンドをビルド"
 run = [{ tasks = ["backend:build", "frontend:build"] }]
 
 [tasks.ci]
-description = "CI 相当の検査とビルドを順番に実行"
+description = "CI相当の検査とビルドを順番に実行"
 run = [
   { task = "check" },
   { task = "build" },
