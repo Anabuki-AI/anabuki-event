@@ -4,7 +4,7 @@ Anabuki Event は、バックエンド・フロントエンド・ドキュメン
 
 ```text
 anabuki-event/
-├─ backend/       # Java 25 / Javalin / PostgreSQL
+├─ backend/       # Ruby on Rails 8.1 / PostgreSQL
 ├─ frontend/      # Nuxt 4 / Vue 3 / TypeScript
 ├─ docs/          # プロジェクトドキュメント
 ├─ .env.example   # プロジェクト全体の環境変数テンプレート
@@ -41,12 +41,11 @@ git submodule update --init --recursive
 - [mise](https://mise.jdx.dev/installing-mise.html)
 - Docker Desktop
 
-Java、Maven、Node.js、pnpmはmiseがプロジェクトに必要なバージョンをインストールします。OSへ個別にインストールする必要はありません。
+Ruby、Node.js、pnpmはmiseがプロジェクトに必要なバージョンをインストールします。OSへ個別にインストールする必要はありません。
 
 | ツール | バージョン |
 | --- | --- |
-| Java | Temurin 25 |
-| Maven | 3.9.11 |
+| Ruby | 3.4.7 |
 | Node.js | 22.19.0 |
 | pnpm | 10.15.0 |
 | PostgreSQL | 16（Docker） |
@@ -105,8 +104,11 @@ cp .env.example .env
 | --- | --- | --- |
 | `POSTGRES_USER` | `anabuki` | PostgreSQLユーザー |
 | `POSTGRES_PASSWORD` | `anabuki` | PostgreSQLパスワード |
-| `JDBC_URL` | `jdbc:postgresql://localhost:5432/anabuki_event` | ローカルJava起動時のDB接続先 |
-| `DB_POOL_SIZE` | `10` | バックエンドのDBコネクションプール数 |
+| `DATABASE_URL` | `postgresql://anabuki:anabuki@localhost:5433/anabuki_event_rails_development` | ローカルRails起動時のDB接続先 |
+| `RAILS_MAX_THREADS` | `5` | Railsのスレッド数 |
+| `QUE_WORKER_COUNT` | `3` | バックエンドのジョブワーカー数 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | なし | Google OAuth認証情報 |
+| `ADMIN_EMAIL_ALLOWLIST` | なし | 管理者として許可するメールアドレス（カンマ区切り） |
 | `PORT` | `8080` | バックエンドのHTTPポート |
 | `NUXT_BACKEND_BASE_URL` | `http://localhost:8080` | Nuxtから参照するバックエンドURL |
 | `NUXT_PUBLIC_API_BASE` | `/api` | ブラウザ側のAPIベースパス |
@@ -170,10 +172,11 @@ mise run stop
 
 | コマンド | 内容 |
 | --- | --- |
-| `mise run backend:dev` | バックエンドとPostgreSQLをDockerで前面起動 |
-| `mise run backend:run` | PostgreSQLをDocker、APIをローカルJavaで起動 |
-| `mise run backend:test` | Mavenテストを実行 |
-| `mise run backend:build` | 実行可能JARを作成 |
+| `mise run backend:dev` | バックエンド・ワーカーとPostgreSQLをDockerで前面起動 |
+| `mise run backend:run` | PostgreSQLをDocker、APIをローカルRailsで起動 |
+| `mise run backend:lint` | Rubocopを実行 |
+| `mise run backend:test` | RSpecテストを実行 |
+| `mise run backend:build` | バックエンドのDockerイメージを作成 |
 
 ### フロントエンド
 
@@ -203,6 +206,6 @@ mise run stop
 
 ```powershell
 mise run check
-mise exec -- java -version
+mise exec -- ruby -v
 mise exec -- node --version
 ```

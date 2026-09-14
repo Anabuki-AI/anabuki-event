@@ -2,8 +2,7 @@ min_version = "2026.1.0"
 redactions = ["POSTGRES_PASSWORD"]
 
 [tools]
-java = "temurin-25"
-maven = "3.9.11"
+ruby = "3.4.7"
 node = "22.19.0"
 pnpm = "10.15.0"
 
@@ -63,30 +62,46 @@ run = [
 ]
 
 [tasks."backend:dev"]
-description = "ルート .env を使ってバックエンドと PostgreSQL を前面起動"
+description = "ルート .env を使ってバックエンド・ワーカーと PostgreSQL を前面起動"
 depends = ["docker:check"]
 run = "docker compose --env-file .env -f backend/docker-compose.yml up --build"
 interactive = true
 
 [tasks."backend:run"]
-description = "ルート .env を使い、PostgreSQL を Docker、バックエンドをローカル Java で起動"
+description = "ルート .env を使い、PostgreSQL を Docker、バックエンドをローカル Rails で起動"
 depends = ["db:up"]
 dir = "backend"
 run = [
-  "mvn -B -DskipTests package",
-  "mise exec -- java -jar target/backend.jar",
+  "bundle install",
+  "bundle exec rails db:prepare",
+  "bundle exec rails server -b 0.0.0.0 -p 8080",
 ]
 interactive = true
 
-[tasks."backend:test"]
-description = "バックエンドのテストを実行"
+[tasks."backend:lint"]
+description = "バックエンドを Rubocop で検査"
 dir = "backend"
-run = "mvn -B test"
+run = [
+  "bundle install",
+  "bundle exec rubocop",
+]
+
+[tasks."backend:test"]
+description = "バックエンドのテストを実行 (RSpec)"
+depends = ["db:up"]
+dir = "backend"
+env = { RAILS_ENV = "test", DATABASE_URL = "postgresql://anabuki:anabuki@localhost:5433/anabuki_event_rails_test" }
+run = [
+  "bundle install",
+  "bundle exec rails db:prepare",
+  "bundle exec rspec",
+]
 
 [tasks."backend:build"]
-description = "バックエンドの実行可能 JAR を作成"
+description = "バックエンドの Docker イメージを作成"
+depends = ["docker:check"]
 dir = "backend"
-run = "mvn -B -DskipTests package"
+run = "docker compose build"
 
 [tasks."frontend:install"]
 description = "pnpm lockfile に従って依存関係をインストール"
@@ -132,8 +147,8 @@ description = "バックエンドとフロントエンドのテストを実行"
 run = [{ tasks = ["backend:test", "frontend:test"] }]
 
 [tasks.check]
-description = "コミット前の全検査（backend test + frontend lint/typecheck/test）"
-run = [{ tasks = ["backend:test", "frontend:check"] }]
+description = "コミット前の全検査（backend lint/test + frontend lint/typecheck/test）"
+run = [{ tasks = ["backend:lint", "backend:test", "frontend:check"] }]
 
 [tasks.build]
 description = "バックエンドとフロントエンドをビルド"
