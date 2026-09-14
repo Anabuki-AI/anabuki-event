@@ -1,6 +1,6 @@
 [submodule "backend"]
 	path = backend
-	url = https://github.com/Anabuki-AI/anabuki-event-backend
+	url = https://github.com/Anabuki-AI/anabuki-event-backend-rails
 [submodule "frontend"]
 	path = frontend
 	url = https://github.com/Anabuki-AI/anabuki-event-frontend
