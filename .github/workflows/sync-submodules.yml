@@ -48,12 +48,10 @@ jobs:
           ref: main
           fetch-depth: 0
           submodules: false
-          # The default GITHUB_TOKEN authenticates as github-actions[bot], which
-          # is NOT a bypass actor of the "do not touch" branch ruleset on this
-          # repository (required_signatures + restricted updates). Pushes made
-          # with it are rejected. Use the PARENT_REPOSITORY_TOKEN (an org
-          # admin's PAT, the same secret the child repositories use to dispatch)
-          # so the push is evaluated as an admin and bypasses the ruleset.
+          # Falls back to the default GITHUB_TOKEN. The branch ruleset no
+          # longer requires signed commits / restricts updates, so the bot
+          # push succeeds. PARENT_REPOSITORY_TOKEN (admin PAT) is kept as an
+          # optional override in case protections are re-enabled later.
           token: ${{ secrets.PARENT_REPOSITORY_TOKEN || github.token }}
 
       - name: Update the submodule reference
@@ -80,16 +78,10 @@ jobs:
       - name: Commit and push the updated reference
         if: steps.update.outputs.changed == 'true'
         env:
-          PARENT_REPOSITORY_TOKEN: ${{ secrets.PARENT_REPOSITORY_TOKEN }}
           SUBMODULE: ${{ steps.payload.outputs.submodule }}
           SHA: ${{ steps.payload.outputs.sha }}
         run: |
           set -euo pipefail
-          if [ -z "$PARENT_REPOSITORY_TOKEN" ]; then
-            echo "::error::PARENT_REPOSITORY_TOKEN is not configured; the push would be rejected by the branch ruleset."
-            echo "Add the org admin PAT (same value as the child repositories' secret) as this repository's Actions secret."
-            exit 1
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore(submodules): update ${SUBMODULE} to ${SHA:0:7}"
